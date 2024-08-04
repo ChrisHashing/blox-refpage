@@ -127,23 +127,19 @@ app.get('/api/pointsData', (req, res) => {
 // Secure POST endpoints with API key validation middleware
 app.post('/api/addUser', validateApiKey, (req, res) => {
     const { id, referralCode } = req.body;
-    console.log(`ID: ${id} ReferralCode: ${referralCode}`);
+
     if (!id) {
         return res.status(400).json({ error: "ID required" });
     }
 
-    const code = referralCode ? referralCode : "";
-
-    console.log(`ID: ${id} ReferralCode: ${referralCode}`);
-
-    pool.query('CALL addUser(?, ?, ?)', [id, id, code], (error, results) => {
+    pool.query('CALL addUser(?, ?, ?)', [id, id, referralCode || ""], (error, results) => {
         if (error) {
             return res.status(500).json({ error: error.message });
         }
-        console.log("User added successfully");
         res.status(201).json({ message: "User added successfully" });
     });
 });
+
 
 // Combined API endpoint to set a referral code and deactivate old code if provided
 app.post('/api/setReferralCode', validateApiKey, (req, res) => {
@@ -165,17 +161,33 @@ app.post('/api/setReferralCode', validateApiKey, (req, res) => {
 
     deactivateOldCode
         .then(() => {
-            pool.query('CALL setReferralCode(?, ?, TRUE)', [id, newReferralCode], (error, results) => {
+            return new Promise((resolve, reject) => {
+                pool.query('CALL setReferralCode(?, ?, TRUE)', [id, newReferralCode], (error, results) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        })
+        .then(() => {
+            pool.query('CALL getReferralCodeData(?)', [id], (error, results) => {
                 if (error) {
                     return res.status(500).json({ error: error.message });
                 }
-                res.status(200).json({ message: "Referral code updated successfully" });
+                if (results[0].length === 0) {
+                    return res.status(500).json({ error: "no referral codes found" });
+                }
+
+                res.json({ message: "Referral code updated successfully", referral_code: results[0][0].referral_code });
             });
         })
         .catch((error) => {
             res.status(500).json({ error: error.message });
         });
 });
+
 
 // // API endpoint to add a user
 // app.post('/api/addUser', (req, res) => {

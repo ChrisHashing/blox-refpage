@@ -41,38 +41,48 @@ function UserInfo() {
   };
 
   const handleAddUser = async (id, code) => {
-    fetch(import.meta.env.VITE_API_URL + '/api/addUser', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_API_KEY
-      },
-      body: JSON.stringify({ id: id, referralCode: code })
-    })
-      .then(response => response.json())
-      .then(data => console.log(data))
-      .catch(error => console.error('Error:', error));
-  }
+    try {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/addUser', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': import.meta.env.VITE_API_KEY
+        },
+        body: JSON.stringify({ id: id, referralCode: code })
+      });
+      const data = await response.json();
+      console.log(data);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const handleSetCode = async (id, newCode, oldCode) => {
-    fetch(import.meta.env.VITE_API_URL + '/api/setReferralCode', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_API_KEY
-      },
-      body: JSON.stringify({ id: id, oldReferralCode: oldCode, newReferralCode: newCode })
-    })
-      .then(response => response.json())
-      .then(data => console.log(data))
-      .catch(error => console.error('Error:', error));
-  }
+    try {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/setReferralCode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': import.meta.env.VITE_API_KEY
+        },
+        body: JSON.stringify({ id: id, oldReferralCode: oldCode, newReferralCode: newCode })
+      });
+      const data = await response.json();
+      console.log(data);
+      if (data.referral_code) {
+        setReferralCode(data.referral_code);
+        setReferralLink(`https://ref.bloxsolutions.app/?referralCode=${data.referral_code}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const handleRegister = async () => {
     if (isAuthenticated && user?.userId) {
       const usedCode = extractReferralCode();
-      console.log(usedCode);
-      await handleAddUser(user.userId, usedCode);
+      await handleAddUser(user.userId, usedCode); // Register the user
+      await fetchReferralCodeData(); // Fetch the referral code data after registration
     }
   };
 
@@ -92,17 +102,16 @@ function UserInfo() {
 
   const fetchUserData = async () => {
     try {
-      console.log(`Fetching data for ${user?.userId}`)
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/userData?id=${user?.userId}`);
       if (response.data && !response.data.error) {
         console.log("User data found.");
       } else {
-        handleRegister();
+        await handleRegister();
         console.log("User registered.");
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      handleRegister();
+      await handleRegister();
     }
   };
 
@@ -110,7 +119,6 @@ function UserInfo() {
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/referralCodeData?id=${user?.userId}`);
       if (response.data && !response.data.error) {
-        console.log(response.data.referral_code);
         setReferralCode(response.data.referral_code);
         setReferralLink(`https://ref.bloxsolutions.app/?referralCode=${response.data.referral_code}`);
       } else {
@@ -124,12 +132,10 @@ function UserInfo() {
 
   useEffect(() => {
     const usedCode = extractReferralCode();
-    console.log(usedCode);
     if (isAuthenticated && user?.userId && !isLoggedIn) {
       setIsLoggedIn(true);
       fetchUserData();
       fetchReferralCodeData();
-      console.log("Logged In");
     }
   }, [isAuthenticated, user, isLoggedIn]);
 
@@ -146,16 +152,16 @@ function UserInfo() {
           <p>@{user.username}</p>
           <p>{user.email}</p>
         </div>
-        <div class={styles.outer}>
-          <div class={styles.inner}></div>
+        <div className={styles.outer}>
+          <div className={styles.inner}></div>
         </div>
         <div className={styles.referralCode}>
           <p>REFERRAL CODE</p>
           <div className={styles.refresh_container}>
             <p className={styles.refCode}>{referralCode}</p>
-            {/*<button className={styles.neumorphicbtn} onClick={handleRefresh}>
+            <button className={styles.neumorphicbtn} onClick={handleRefresh}>
               <img src={refresh} alt="Refresh" />
-            </button>*/}
+            </button>
             <button className={styles.neumorphicbtn} onClick={() => copyToClipboard(referralLink)}>
               <img src={copy} alt="Copy" />
             </button>
